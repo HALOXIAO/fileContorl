@@ -23,7 +23,7 @@ def build_project():
 
 @project.route('/api/Project', methods=['DELETE'], strict_slashes=False)
 def delete_project():
-    name = str(request.args.get('ID'))
+    name = str(request.args.get('ID')) #获得文件ID
     file = file_path +'\\'+ name
     if os.path.exists(file):
         os.remove(file)
@@ -43,8 +43,19 @@ def get_project():
     abort(Response("Download failed"))
 
 
-@project.route('/api/Project', methods=['PUT'])
+@project.route('/api/Project', methods=['PUT'],strict_slashes=False)
 def edit_project():
+    name = str(request.args.get('ID'))
+    f = request.files['file']
+    if not os.path.exists(file_path):
+        return jsonify({"err": "file path wrong"})
+    else:
+        f.save(os.path.join(file_path, name))
+        return jsonify({'mes': "成功编辑"})
+
+
+@project.route('/api/ForkProject', methods=['PUT'], strict_slashes=False)
+def fork_project():
     pass
 
 
