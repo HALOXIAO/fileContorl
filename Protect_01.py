@@ -37,13 +37,22 @@ def delete_project():
 def get_project():
     name = str(request.args.get('ID'))
     if os.path.exists(file_path):
-        return send_from_directory(file_path, name, as_attachment=True)#as_attachment为True是下载
+        f = open(os.path.join(file_path, name), encoding = 'cp852')
+        w = open(os.path.join(file_path, 'TEMP'), 'a')
+        for line in f:
+            w.write(line)
+        f.close()
+        w.close()
+        try:
+            return send_from_directory(file_path, 'TEMP', as_attachment=True)#as_attachment为True是下载
+        finally:
+            os.remove(os.path.join(file_path, name))
     else:
         return jsonify({"errormessage": "file does not exit"})
     abort(Response("Download failed"))
 
 
-@project.route('/api/Project', methods=['PUT'],strict_slashes=False)
+@project.route('/api/Project', methods=['PUT'], strict_slashes=False)
 def edit_project():
     name = str(request.args.get('ID'))
     f = request.files['file']
@@ -56,7 +65,12 @@ def edit_project():
 
 @project.route('/api/ForkProject', methods=['PUT'], strict_slashes=False)
 def fork_project():
-    pass
+    name = str(request.args.get('ID'))
+    if os.path.exists(file_path):
+        return send_from_directory(file_path, name, as_attachment=True)#as_attachment为True是下载
+    else:
+        return jsonify({"errormessage": "file does not exit"})
+    abort(Response("Download failed"))
 
 
 if __name__ == '__main__':
