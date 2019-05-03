@@ -1,11 +1,10 @@
 from flask import Flask, request, jsonify, send_from_directory, Response, abort
 import os
 import random
-import filelock
+import projectGit.Project.FileLock
 
 project = Flask(__name__)
 file_path = r"E:\imagin\test"
-
 
 class Func:
     @staticmethod
