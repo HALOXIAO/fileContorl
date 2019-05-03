@@ -1,33 +1,43 @@
-
 from flask import Flask, request, jsonify, send_from_directory, Response, abort
 import os
 import random
+import filelock
+
 project = Flask(__name__)
-file_path = "E:\imagin\\test"
+file_path = r"E:\imagin\test"
 
 
 class Func:
-    def back(self, path, stag, wtag, name=None):
-        if os.path.exists(path):
-            return jsonify({ "msg": "%s", "ID": name}) % wtag
+    @staticmethod
+    def back(path, stag, wtag, name=None):
+        filepath = path + '/' + name
+        if os.path.isfile(filepath):
+            return jsonify({"msg": stag, "ID": name})
         else:
-            return jsonify({'errmsg': '%s'}) % stag
-        abort(Response("faile"))
+            return jsonify({'errmsg': wtag})
 
-    def send(self, path, wtag, name=None):
-        if os.path.exists(path):
-            return send_from_directory(file_path, name, as_attachment=True)  # as_attachment为True是下载
+    @staticmethod
+    def send(path, wtag, name=None):
+        path = path + '/' + name
+        if os.path.isfile(path):
+            try:
+                return send_from_directory(file_path, name, as_attachment=True)  # as_attachment为True是下载
+            except(Exception):
+                return jsonify("upload faile")
         else:
-            return jsonify({"errormessage": "%s"}) % wtag
-        abort( Response("faile"))
+            return jsonify({"errormessage": wtag})
 
-    def save(self, path, wtag, stag, object, name=None):
-        if not os.path.exists(path):
-            return jsonify({"err": "%s"}) % wtag
+    @staticmethod
+    def save(path, wtag, stag, obj, name=None):
+        filepath = path + '\\' + name
+        if os.path.isfile(filepath):
+            try:
+                obj.save(os.path.join(path, name))
+                return jsonify({'mes': stag})
+            except(Exception):
+                return jsonify("saving fail")
         else:
-            object.save(os.path.join(path, name))
-            return jsonify({'mes': "%s"}) % stag
-        abort(Response("faile"))
+            return jsonify({"err": wtag})
 
 
 @project.route('/api/Project', methods=['POST'], strict_slashes=False)
@@ -35,59 +45,70 @@ def build_project():
     func = Func()
     if not os.path.exists(file_path):
         os.makedirs(file_path)
-    number = random.randint(100, 999999)
-    f = request.files['file']
+    number = random.randint(100, 9999999)
     name = str(hash(number))
-    f.save(os.path.join(file_path, name))
-    path = file_path + '/' + name
-    func.back(path, '上传成功', 'wrong', name)
+    try:
+        f = request.files['file']
+        f.save(os.path.join(file_path, name))
+    except(Exception):
+        return jsonify("file has sth wrong")
+    path = file_path
+    return func.back(path, '上传成功', 'upload wrong', name)
 
-@project.route('/api/Project', methods=['DELETE'], strict_slashes=False)
+
+@project.route('/api/Project', methods=['DELETE'], strict_slashes=False)  # OK
 def delete_project():
-    name = str(request.args.get('ID')) #获得文件ID
-    file = file_path +'\\'+ name
-    if os.path.exists(file):
-        os.remove(file)
-        return jsonify({'msg': '成功删除'})
+    name = str(request.args.get('ID'))  # 获得文件ID
+    filepath = file_path + '/' + name
+    if os.path.isfile(filepath):
+        try:
+            os.remove(filepath)
+            return jsonify({'msg': '成功删除'})
+        except(Exception):
+            return jsonify("A failure occurred while deleting the file")
     else:
         return jsonify({'fileError': "Destination file does not exist"})
-    return jsonify({'err': 'test'})
 
 
-@project.route('/api/Project', methods=['GET'], strict_slashes=False)
+
+@project.route('/api/Project', methods=['GET'], strict_slashes=False) #OK
 def get_project():
     name = str(request.args.get('ID'))
-    if os.path.exists(file_path):
-        f = open(os.path.join(file_path, name), encoding = 'cp852')
+    filepath = file_path + '/' + name
+    if os.path.isfile(filepath):
+        f = open(os.path.join(file_path, name), encoding='cp852')
         w = open(os.path.join(file_path, 'TEMP'), 'a')
         for line in f:
             w.write(line)
         f.close()
         w.close()
         try:
-            return send_from_directory(file_path, 'TEMP', as_attachment=True)#as_attachment为True是下载
+            return send_from_directory(file_path, 'TEMP', as_attachment=True)  # as_attachment为True是下载
         finally:
-            os.remove(os.path.join(file_path, name))
+                os.remove(os.path.join(file_path, name))
     else:
-        return jsonify({"errormessage": "file does not exit"})
-    abort(Response("Download failed"))
+        return jsonify({"errormessage": 'without this file'})
 
 
 @project.route('/api/Project', methods=['PUT'], strict_slashes=False)
 def edit_project():
     func = Func()
     name = str(request.args.get('ID'))
-    f = request.files['file']
-    func.save(file_path, 'file path wrong','成功编辑', f, name)
+    try:
+        f = request.files['file']
+        return func.save(file_path, 'file path wrong', '成功编辑', f, name=name)
+    except(Exception):
+        return jsonify("edit Wrong")
 
 
 @project.route('/api/ForkProject', methods=['PUT'], strict_slashes=False)
 def fork_project():
     name = str(request.args.get('ID'))
     func = Func()
-    func.send(file_path, 'file does not exit', name)
+    return func.send(file_path, 'file does not exit', name=name)
 
 
 if __name__ == '__main__':
-    project.run(host='127.0.0.1', port=5000)
-
+    project.run(host='127.0.0.1',
+                port=5001, threaded=True,
+                debug=True)
